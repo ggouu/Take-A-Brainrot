@@ -1,0 +1,711 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Take A Brainrot — Enhanced</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  /* ---------- THEME & LAYOUT ---------- */
+  :root{
+    --bg-top:#071427; --bg-bottom:#07101b;
+    --glass: rgba(255,255,255,0.04);
+    --accent:#7af7d2;
+    --ui-accent: #6fd7ff;
+    --soft: 14px;
+    --easing: cubic-bezier(.16,.9,.24,1);
+  }
+  *{box-sizing:border-box;font-family:Inter,Segoe UI,system-ui,Arial,sans-serif}
+  html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg-top),var(--bg-bottom));color:#eaf6ff;overflow:hidden}
+  #app{height:100vh;display:flex;flex-direction:column}
+  header{height:68px;display:flex;align-items:center;justify-content:space-between;padding:12px 20px;backdrop-filter:blur(6px);background:linear-gradient(90deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));box-shadow:0 6px 30px rgba(0,0,0,0.45)}
+  header h1{font-size:18px;letter-spacing:0.6px;margin:0}
+  .top-controls{display:flex;gap:10px;align-items:center}
+  .btn{background:linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02));border:1px solid rgba(255,255,255,0.06);padding:8px 12px;border-radius:10px;color:#fff;cursor:pointer;font-weight:600;transition:transform .15s var(--easing), box-shadow .15s var(--easing)}
+  .btn:hover{transform:translateY(-3px);box-shadow:0 10px 30px rgba(15,25,40,0.45)}
+  .main{display:flex;gap:16px;padding:14px;height:calc(100vh - 92px)}
+  #left{flex:1;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(0,0,0,0.12));padding:12px;position:relative;overflow:hidden}
+  #right{width:380px;display:flex;flex-direction:column;gap:12px}
+  canvas{display:block;width:100%;height:100%;border-radius:8px;background:linear-gradient(180deg,#07101a,#04101a)}
+  .panel{background:var(--glass);padding:12px;border-radius:10px;backdrop-filter: blur(4px);box-shadow:0 8px 24px rgba(0,0,0,0.45)}
+  .small{font-size:13px;color:#dff7f0}
+  .muted{opacity:0.85;font-size:12px}
+  /* ---------- INTRO ANIMATIONS ---------- */
+  #introOverlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:80;pointer-events:auto}
+  .logoWrap{display:flex;align-items:center;gap:12px;transform:translateY(-24px);opacity:0;animation:logoIn .9s .15s both}
+  @keyframes logoIn{to{transform:none;opacity:1}}
+  .logo{width:110px;height:110px;border-radius:14px;background:linear-gradient(135deg,#ffb84d,#ff6a00);display:flex;align-items:center;justify-content:center;font-weight:900;color:#111;font-size:22px;box-shadow:0 14px 40px rgba(255,120,20,0.12), inset 0 -6px 18px rgba(0,0,0,0.12)}
+  .tag{font-size:14px;opacity:0.95}
+  .introCard{margin-top:18px;padding:18px 24px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,0.03),rgba(0,0,0,0.08));transform:translateY(14px);opacity:0;animation:cardIn .9s .3s both}
+  @keyframes cardIn{to{transform:none;opacity:1}}
+  .startPulse{display:inline-block;padding:10px 16px;border-radius:12px;margin-top:12px;background:linear-gradient(90deg,var(--ui-accent),#9bffdf);color:#052; font-weight:800; box-shadow:0 12px 30px rgba(107,230,220,0.12); animation:pulse 1.6s infinite;}
+  @keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.06)}100%{transform:scale(1)}}
+  /* ---------- SPAWN PARTICLES & EFFECTS ---------- */
+  .fx-canvas{position:absolute;inset:0;pointer-events:none;z-index:30}
+  .hudTop{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .statPill{background:linear-gradient(180deg,rgba(255,255,255,0.03),rgba(0,0,0,0.06));padding:8px 10px;border-radius:10px;display:flex;gap:10px;align-items:center}
+  .rarityGlow{filter:drop-shadow(0 0 12px rgba(0,0,0,0.6))}
+  /* ---------- POPUP / ACHIEVEMENT ---------- */
+  .popup{position:fixed;right:20px;bottom:20px;background:linear-gradient(180deg,#0f1720,#07101a);padding:12px;border-radius:12px;color:#fff;z-index:120;box-shadow:0 18px 48px rgba(0,0,0,0.6);transform:translateY(10px);opacity:0;animation:popupIn .45s both}
+  @keyframes popupIn{to{transform:none;opacity:1}}
+  /* ---------- SHOP PANEL ANIMATION ---------- */
+  .slideIn{transform:translateX(120%);opacity:0;transition:transform .45s var(--easing),opacity .45s var(--easing)}
+  .slideShow{transform:none;opacity:1}
+  /* ---------- SMALL UTILS ---------- */
+  .tiny{font-size:12px;opacity:0.9}
+  .glow{box-shadow:0 0 16px rgba(255,255,255,0.04), 0 8px 30px rgba(0,0,0,0.5)}
+  /* responsive */
+  @media(max-width:980px){ #right{display:none} .main{padding:8px} }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>Take A Brainrot — Enhanced</h1>
+    <div class="top-controls">
+      <div class="statPill"><div class="small">Robo</div><div id="moneyDisplay" style="font-weight:800;margin-left:6px">0</div></div>
+      <button class="btn" id="openShopBtn">Shop</button>
+      <button class="btn" id="openRebirthBtn">Rebirth</button>
+      <button class="btn" id="openPrivateBtn">Private Server</button>
+    </div>
+  </header>
+
+  <div class="main">
+    <div id="left">
+      <div class="hudTop">
+        <div class="statPill"><div class="small">Player</div><div id="playerName" style="font-weight:800;margin-left:6px">You</div></div>
+        <div class="statPill"><div class="small">Inv</div><div id="invCount" style="font-weight:800;margin-left:6px">0</div></div>
+        <div class="statPill"><div class="small">Level</div><div id="playerLevel" style="font-weight:800;margin-left:6px">1</div></div>
+      </div>
+
+      <!-- main game canvas -->
+      <canvas id="gameCanvas" width="1200" height="700"></canvas>
+      <!-- effects layer (particles, glitches) -->
+      <canvas id="fxCanvas" class="fx-canvas"></canvas>
+
+      <!-- animated intro -->
+      <div id="introOverlay">
+        <div class="logoWrap">
+          <div class="logo">BR</div>
+          <div>
+            <div style="font-size:20px;font-weight:800">Take A Brainrot</div>
+            <div class="tag muted">Steal • Collect • Protect</div>
+          </div>
+        </div>
+
+        <div class="introCard">
+          <div style="max-width:520px;text-align:center">
+            <div style="font-size:14px;margin-bottom:8px">Fast, chaotic, and shiny — collect Brainrots, bring them to your base, or steal from other players!</div>
+            <div style="display:flex;gap:10px;justify-content:center">
+              <button id="startBtn" class="startPulse">START GAME</button>
+              <button id="demoBtn" class="btn">Quick Demo</button>
+            </div>
+            <div style="margin-top:8px;font-size:12px;color:#cfeef1">Controls: WASD / arrows • Click or F pickup • E to deliver</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="right">
+      <div id="shopPanel" class="panel slideIn">
+        <strong>Shop</strong>
+        <div class="tiny muted">Purchase items with Robo</div>
+        <div id="shopItems" style="margin-top:8px"></div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn" id="closeShop">Close</button>
+        </div>
+      </div>
+
+      <div id="rebirthPanel" class="panel slideIn">
+        <strong>Rebirth</strong>
+        <div class="muted tiny">Reset progress for permanent boosts</div>
+        <div style="margin-top:8px">Cost: <strong>1,000,000 Robo</strong></div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn" id="rebirthBtn">Rebirth</button>
+          <button class="btn" id="closeRebirth">Close</button>
+        </div>
+      </div>
+
+      <div id="privatePanel" class="panel slideIn">
+        <strong>Private Server</strong>
+        <div class="muted tiny">Create a private room (UI stub for demo)</div>
+        <div style="margin-top:8px;display:flex;gap:8px">
+          <input id="privateCode" placeholder="Room code" style="flex:1;padding:8px;border-radius:8px;border:0" />
+          <button class="btn" id="makePrivate">Make</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn" id="closePrivate">Close</button>
+        </div>
+      </div>
+
+      <div id="adminBlock" class="panel">
+        <strong>Admin Panel</strong>
+        <div class="muted tiny">Unlock for 10,000,000 Robo</div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn" id="buyAdmin">Buy Admin</button>
+        </div>
+        <div id="adminControls" style="margin-top:8px;display:none">
+          <div style="display:flex;gap:6px">
+            <button class="btn" id="spawnFaster">Spawn Faster</button>
+            <button class="btn" id="spawnSlower">Spawn Slower</button>
+            <button class="btn" id="clearAll">Clear Brainrots</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <strong>Tips</strong>
+        <div class="tiny muted" style="margin-top:8px">Touch bots carrying brainrots to attempt a steal. Deliver to your base to convert into Robo. Rarities glow — higher value = rarer.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ---------- SINGLE-FILE GAME LOGIC (JS) ---------- -->
+<script>
+/* Enhanced Take A Brainrot — single file prototype
+   - Animated intro and transitions
+   - Particle spawn & pickup effects
+   - Rarity glows + visual polish
+   - Shop, private UI, rebirth, admin
+   - Bots simulate other players
+   Save as take_a_brainrot_enhanced.html and open in Chrome.
+*/
+
+/////////////////////// Utilities ///////////////////////
+const $ = id => document.getElementById(id);
+function rand(a,b){ return Math.random()*(b-a)+a; }
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+function dist(a,b,c,d){ return Math.hypot(c-a, d-b); }
+function now(){ return performance.now(); }
+
+// lightweight sound FX via WebAudio
+const audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+function beep(freq=440, time=0.06, vol=0.06, type='sine'){
+  try{
+    const o=audioCtx.createOscillator();
+    const g=audioCtx.createGain();
+    o.type=type; o.frequency.value=freq; g.gain.value=vol;
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + time);
+  }catch(e){}
+}
+
+/////////////////////// Canvas + FX ///////////////////////
+const canvas = $('gameCanvas');
+const fxCanvas = $('fxCanvas');
+const ctx = canvas.getContext('2d');
+const fx = fxCanvas.getContext('2d');
+
+function resizeCanvases(){
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * devicePixelRatio;
+  canvas.height = rect.height * devicePixelRatio;
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+  fxCanvas.width = canvas.width;
+  fxCanvas.height = canvas.height;
+  fxCanvas.style.width = rect.width + 'px';
+  fxCanvas.style.height = rect.height + 'px';
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  fx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+}
+window.addEventListener('resize', () => { resizeCanvases(); });
+
+/* world size (logical coords) */
+let W = 1200, H = 700;
+function initCanvasSize(){ resizeCanvases(); }
+initCanvasSize();
+
+/////////////////////// Game Config ///////////////////////
+const CONFIG = {
+  spawnInterval: 1800,
+  botCount: 3,
+  invisiblePad: 8,
+  adminCost: 10_000_000,
+  maxBrainrots: 140
+};
+
+/////////////////////// Rarities ///////////////////////
+const RARITIES = [
+  {id:'common', name:'Common', color:'#3ddc84', glow:'rgba(61,220,132,0.18)', weight:0.56, mult:1},
+  {id:'rare',   name:'Rare',   color:'#2b8af6', glow:'rgba(43,138,246,0.22)', weight:0.24, mult:2},
+  {id:'legendary',name:'Legendary',color:'#ffd24a', glow:'rgba(255,210,74,0.25)', weight:0.12, mult:4},
+  {id:'mythic', name:'Mythic', color:'#ff4b4b', glow:'rgba(255,75,75,0.28)', weight:0.06, mult:8},
+  {id:'secret', name:'Secret', color:'#000000', glow:'rgba(255,255,255,0.85)', weight:0.014, mult:16},
+  {id:'BEST', name:'BEST', color:'#ff9a1f', glow:'rgba(255,150,40,0.34)', weight:0.006, mult:64}
+];
+function pickRarity(){
+  let r = Math.random();
+  for(const k of RARITIES){
+    if(r < k.weight) return k;
+    r -= k.weight;
+  }
+  return RARITIES[0];
+}
+
+/////////////////////// World: track + black wall ///////////////////////
+const track = { x: 330, y: 42, w: 540, h: 52, colors: ['#ff4b4b','#2b8af6','#3ddc84'] };
+const blackWall = { x: 330, y: track.y + track.h + 6, w: track.w, h: 28 }; // origin strip
+const borders = { left: CONFIG.invisiblePad, right: 1180 - CONFIG.invisiblePad, top: CONFIG.invisiblePad, bottom: 680 - CONFIG.invisiblePad };
+
+/////////////////////// State ///////////////////////
+const state = {
+  player: { x:120, y:520, r:14, name:'You', inventory:[], money:0, rebirths:0, level:1 },
+  bots: [],
+  brainrots: [],
+  bases: [],
+  lastSpawn: 0,
+  spawnRate: CONFIG.spawnInterval,
+  adminUnlocked: false,
+  privateMode: false,
+  particles: []
+};
+
+/////////////////////// Bases & Bots ///////////////////////
+function createBase(x,y,name){ return { x, y, w:140, h:90, name, stored:[] }; }
+state.bases.push(createBase(30,70, state.player.name));
+for(let i=0;i<CONFIG.botCount;i++) state.bases.push(createBase(980, 60 + i*140, 'Bot'+(i+1)));
+for(let i=0;i<CONFIG.botCount;i++){
+  state.bots.push({
+    id:'bot'+i, x:980+rand(-12,12), y:120 + i*140, r:12, name:'Bot'+(i+1),
+    inventory:[], vx: rand(-24,24), vy: rand(-18,18), speed: 40
+  });
+}
+
+/////////////////////// Brainrot entity ///////////////////////
+let brID = 1;
+function spawnBrainrot(){
+  if(state.brainrots.length > CONFIG.maxBrainrots) return;
+  const rx = rand(track.x+8, track.x+track.w-8);
+  const ry = blackWall.y + rand(2, blackWall.h-4);
+  const rarity = pickRarity();
+  const br = {
+    id:'br'+(brID++),
+    x: rx, y: ry,
+    vx: rand(-0.18,0.18), vy: rand(-0.12,0.12),
+    r: 10 + (rarity.mult > 4 ? 6 : 0),
+    rarity,
+    owner: null,
+    birth: now(),
+    wobble: rand(0,10000)
+  };
+  state.brainrots.push(br);
+  spawnFlash(rx,ry,rarity.color);
+  beep(900,0.05,0.03,'triangle');
+}
+
+/////////////////////// PARTICLES (fx) ///////////////////////
+function spawnFlash(x,y,color){
+  // small particle burst
+  for(let i=0;i<18;i++){
+    state.particles.push({
+      x, y, vx: rand(-2.8,2.8), vy: rand(-2.2, -0.2), life: rand(600,1000),
+      age:0, col: color, size: rand(1.8,4.6)
+    });
+  }
+}
+function spawnPickupPop(x,y,color){
+  for(let i=0;i<10;i++){
+    state.particles.push({
+      x,y,vx:rand(-2.4,2.4),vy:rand(-4.2,-1.2),life:rand(600,1100),age:0,col:color,size:rand(2,5)
+    });
+  }
+}
+function updateParticles(dt){
+  for(let i=state.particles.length-1;i>=0;i--){
+    const p = state.particles[i];
+    p.age += dt;
+    p.x += p.vx * (dt/16); p.y += p.vy * (dt/16);
+    p.vy += 0.06 * (dt/16);
+    if(p.age >= p.life) state.particles.splice(i,1);
+  }
+}
+function drawParticles(ctx){
+  for(const p of state.particles){
+    const a = 1 - (p.age / p.life);
+    ctx.globalAlpha = a;
+    ctx.fillStyle = p.col;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (a*1.2), 0, Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+/////////////////////// DRAW WORLD ///////////////////////
+function drawWorld(){
+  // clear
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // floor gradient
+  const g = ctx.createLinearGradient(0,0,0,canvas.height);
+  g.addColorStop(0,'#071424'); g.addColorStop(1,'#04101a');
+  ctx.fillStyle = g; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // track stripes
+  const stripeW = track.w/3;
+  ctx.fillStyle = track.colors[0]; ctx.fillRect(track.x, track.y, stripeW, track.h);
+  ctx.fillStyle = track.colors[1]; ctx.fillRect(track.x+stripeW, track.y, stripeW, track.h);
+  ctx.fillStyle = track.colors[2]; ctx.fillRect(track.x+2*stripeW, track.y, stripeW, track.h);
+
+  // black concrete wall
+  ctx.fillStyle = '#0b0b0b'; ctx.fillRect(blackWall.x, blackWall.y, blackWall.w, blackWall.h);
+  ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; ctx.strokeRect(blackWall.x, blackWall.y, blackWall.w, blackWall.h);
+
+  // bases
+  for(const base of state.bases){
+    ctx.fillStyle = 'rgba(255,255,255,0.03)'; ctx.fillRect(base.x, base.y, base.w, base.h);
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.strokeRect(base.x, base.y, base.w, base.h);
+    ctx.fillStyle = '#fff'; ctx.font='bold 13px sans-serif'; ctx.fillText(base.name, base.x + 8, base.y - 8);
+    ctx.fillStyle = '#bfe'; ctx.font='12px sans-serif'; ctx.fillText('Stored: '+base.stored.length, base.x + 8, base.y + base.h + 16);
+  }
+
+  // brainrots (behind players so they can be picked visually)
+  for(const br of state.brainrots){
+    const bob = Math.sin((now()/200) + br.wobble) * 3;
+    const dx = br.x, dy = br.y + bob;
+    const r = br.r;
+    // glow
+    ctx.save();
+    if(br.rarity.glow){
+      ctx.shadowColor = br.rarity.glow;
+      ctx.shadowBlur = 20;
+    }
+    // shape
+    if(br.rarity.id === 'secret'){
+      ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(dx,dy,r,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.fillRect(dx - r/2, dy - 2, r, 4);
+    } else if(br.rarity.id === 'BEST'){
+      // two-tone radial-ish
+      const gg = ctx.createLinearGradient(dx-r,dy-r,dx+r,dy+r);
+      gg.addColorStop(0,'#ffb84d'); gg.addColorStop(1,'#ff6a00'); ctx.fillStyle = gg;
+      ctx.beginPath(); ctx.arc(dx,dy,r,0,Math.PI*2); ctx.fill();
+    } else {
+      ctx.fillStyle = br.rarity.color; ctx.beginPath(); ctx.arc(dx,dy,r,0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+    // owner initial
+    if(br.owner){
+      ctx.fillStyle = '#fff'; ctx.font='11px sans-serif'; ctx.fillText(br.owner[0].toUpperCase(), dx - 6, dy - r - 8);
+    }
+  }
+
+  // bots
+  for(const b of state.bots){
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r+2, 0, Math.PI*2);
+    ctx.fillStyle = '#bfbfbf'; ctx.fill();
+    ctx.fillStyle = '#000'; ctx.font='12px sans-serif'; ctx.fillText(b.name, b.x - 20, b.y - 18);
+  }
+
+  // player (front)
+  ctx.beginPath(); ctx.arc(state.player.x, state.player.y, state.player.r+2, 0, Math.PI*2);
+  ctx.fillStyle = '#8fe6ff'; ctx.fill();
+  ctx.fillStyle = '#002'; ctx.font='bold 12px sans-serif'; ctx.fillText(state.player.name, state.player.x - 22, state.player.y - 20);
+}
+
+/////////////////////// PARTICLE FX DRAW ///////////////////////
+function drawFX(dt){
+  fx.clearRect(0,0,fxCanvas.width,fxCanvas.height);
+  fx.save();
+  // draw particles in high quality
+  drawParticles(fx);
+  fx.restore();
+}
+
+/////////////////////// GAME LOOP ///////////////////////
+let lastT = performance.now();
+function gameLoop(ts){
+  const dt = ts - lastT; lastT = ts;
+  // spawn logic
+  if(now() - state.lastSpawn > state.spawnRate){
+    spawnBrainrot();
+    state.lastSpawn = now();
+  }
+  // move brainrots slightly
+  for(const br of state.brainrots){
+    br.x += br.vx * (dt/16) * 2;
+    br.y += br.vy * (dt/16) * 2;
+    // keep inside borders
+    br.x = clamp(br.x, borders.left + 6, borders.right - 6);
+    br.y = clamp(br.y, borders.top + 36, borders.bottom - 8);
+  }
+  // bots AI
+  updateBots(dt);
+  // update particles
+  updateParticles(dt);
+  // render
+  drawWorld();
+  drawFX(dt);
+  requestAnimationFrame(gameLoop);
+}
+
+/////////////////////// INPUT ///////////////////////
+const keys = {};
+window.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; if(e.key === ' '){ e.preventDefault(); } });
+window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+canvas.addEventListener('click', e => {
+  // try pick up nearest brainrot near click
+  const rect = canvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * (canvas.width / rect.width) / devicePixelRatio;
+  const my = (e.clientY - rect.top) * (canvas.height / rect.height) / devicePixelRatio;
+  tryPickupAt(mx,my);
+});
+
+function tryPickupAt(x,y){
+  // find nearest br within 44 px
+  let nearest=null, nd=1e9;
+  for(const br of state.brainrots){
+    const d = dist(x,y,br.x,br.y);
+    if(d < 44 && d < nd){ nd = d; nearest = br; }
+  }
+  if(nearest){
+    state.player.inventory.push(nearest);
+    const idx = state.brainrots.indexOf(nearest);
+    if(idx !== -1) state.brainrots.splice(idx,1);
+    spawnPickupPop(x,y, nearest.rarity.color);
+    beep(1200,0.05,0.05,'sine');
+    showTemp('Picked up ' + nearest.rarity.name, 1400);
+    updateUI();
+  }
+}
+
+function tryPickupNearest(){
+  tryPickupAt(state.player.x, state.player.y);
+}
+
+function tryDeliverToBase(){
+  const base = state.bases[0];
+  const bx = base.x + base.w/2, by = base.y + base.h/2;
+  if(dist(state.player.x, state.player.y, bx, by) < 58){
+    // deliver all in inventory
+    for(const br of state.player.inventory){
+      base.stored.push(br);
+      br.owner = state.player.name;
+      const baseValue = 12 * br.rarity.mult;
+      const rebBonus = 1 + state.player.rebirths * 0.06;
+      const gained = Math.floor(baseValue * rebBonus);
+      state.player.money += gained;
+    }
+    state.player.inventory = [];
+    spawnPickupPop(bx,by,'#c8ffb6');
+    showTemp('Delivered! Robo +' , 1600);
+    beep(320,0.06,0.06,'square');
+    updateUI();
+  } else {
+    showTemp('Get to your base to deliver!',1200);
+  }
+}
+
+/////////////////////// Bots AI (steal/deliver) ///////////////////////
+function updateBots(dt){
+  for(const b of state.bots){
+    if(b.inventory && b.inventory.length > 0){
+      // go to own base
+      const baseIndex = state.bots.indexOf(b) + 1;
+      const base = state.bases[baseIndex];
+      moveTowards(b, base.x + base.w/2, base.y + base.h/2, b.speed * (dt/16));
+      // deliver
+      if(dist(b.x,b.y, base.x + base.w/2, base.y + base.h/2) < 20){
+        for(const br of b.inventory){ base.stored.push(br); br.owner = b.name; }
+        b.inventory = [];
+      }
+    } else {
+      // find nearest br
+      const target = findNearestBrainrot(b.x, b.y, 340);
+      if(target){
+        moveTowards(b, target.x, target.y, b.speed * (dt/16));
+        if(dist(b.x,b.y,target.x,target.y) < target.r + 8){
+          b.inventory.push(target);
+          const idx = state.brainrots.indexOf(target); if(idx !== -1) state.brainrots.splice(idx,1);
+          spawnPickupPop(b.x, b.y, target.rarity.color);
+        }
+      } else {
+        // wander
+        b.x += b.vx * (dt/16);
+        b.y += b.vy * (dt/16);
+        if(Math.random() < 0.006){ b.vx = rand(-36,36); b.vy = rand(-28,28); }
+        // boundary
+        b.x = clamp(b.x, borders.left + 8, borders.right - 8);
+        b.y = clamp(b.y, borders.top + 42, borders.bottom - 8);
+      }
+    }
+    // possible steal chance if overlapping with player
+    if(b.inventory && b.inventory.length > 0 && dist(b.x,b.y,state.player.x,state.player.y) < 34){
+      // player steals with a probability
+      if(Math.random() < 0.48){
+        const stolen = b.inventory.pop();
+        state.player.inventory.push(stolen);
+        showTemp('Stole ' + stolen.rarity.name + ' from ' + b.name, 1400);
+        spawnPickupPop(state.player.x, state.player.y, stolen.rarity.color);
+        beep(1600,0.04,0.05,'sine');
+      } else {
+        // failed
+        b.x += rand(-26,26); b.y += rand(-26,26);
+      }
+    }
+  }
+}
+
+/////////////////////// Movement helpers ///////////////////////
+function moveTowards(o, tx, ty, speed){
+  const dx = tx - o.x, dy = ty - o.y;
+  const d = Math.hypot(dx,dy);
+  if(d < 1) return;
+  o.x += (dx/d) * speed;
+  o.y += (dy/d) * speed;
+}
+
+function findNearestBrainrot(x,y,maxD){
+  let best=null, bd=maxD;
+  for(const br of state.brainrots){
+    const d = dist(x,y,br.x,br.y);
+    if(d < bd){ bd = d; best = br; }
+  }
+  return best;
+}
+
+/////////////////////// UI & Panels ///////////////////////
+function showPanel(el, show){
+  if(show) el.classList.add('slideShow'); else el.classList.remove('slideShow');
+}
+$('openShopBtn').onclick = ()=> { showPanel($('shopPanel'), true); };
+$('closeShop').onclick = ()=> { showPanel($('shopPanel'), false); };
+$('openRebirthBtn').onclick = ()=> { showPanel($('rebirthPanel'), true); };
+$('closeRebirth').onclick = ()=> { showPanel($('rebirthPanel'), false); };
+$('openPrivateBtn').onclick = ()=> { showPanel($('privatePanel'), true); };
+$('closePrivate').onclick = ()=> { showPanel($('privatePanel'), false); };
+$('makePrivate').onclick = ()=> {
+  state.privateMode = true; $('psMode').innerText = 'Private'; showTemp('Private room created (demo UI)',1600);
+}
+
+$('buyAdmin').onclick = ()=>{
+  if(state.player.money >= CONFIG.adminCost){
+    state.player.money -= CONFIG.adminCost; state.adminUnlocked = true; $('adminControls').style.display = 'block'; showTemp('Admin unlocked'); updateUI();
+  } else showTemp('Not enough Robo for Admin',1200);
+};
+$('spawnFaster').onclick = ()=> { state.spawnRate = Math.max(200, state.spawnRate - 220); showTemp('Spawn faster'); };
+$('spawnSlower').onclick = ()=> { state.spawnRate += 220; showTemp('Spawn slower'); };
+$('clearAll').onclick = ()=> { state.brainrots.length = 0; showTemp('Cleared brainrots'); };
+
+$('rebirthBtn').onclick = ()=>{
+  const cost = 1_000_000;
+  if(state.player.money >= cost){
+    state.player.money = 0; state.player.rebirths++; state.spawnRate = Math.max(400, state.spawnRate - 80); showTemp('Rebirth complete — multiplier improved', 1800); updateUI();
+  } else showTemp('Need ' + cost + ' Robo to rebirth', 1400);
+};
+
+/////////////////////// SHOP ///////////////////////
+const SHOP = [
+  {id:'pack_small', name:'Small Robo Pack', price:300, effect:pl => pl.money += 300},
+  {id:'pack_med', name:'Med Robo Pack', price:1800, effect:pl => pl.money += 1800},
+  {id:'bag_upgrade', name:'Bag Upgrade', price:5200, effect:pl => {/* future hook */}}
+];
+function renderShop(){
+  const cont = $('shopItems'); cont.innerHTML = '';
+  for(const it of SHOP){
+    const div = document.createElement('div'); div.style.display='flex'; div.style.justifyContent='space-between'; div.style.alignItems='center'; div.style.marginBottom='8px';
+    div.innerHTML = `<div><strong>${it.name}</strong><div class="tiny muted">Price: ${it.price} Robo</div></div><div><button class="btn buyBtn">Buy</button></div>`;
+    div.querySelector('.buyBtn').onclick = ()=>{
+      if(state.player.money >= it.price){ state.player.money -= it.price; it.effect(state.player); updateUI(); showTemp('Purchased ' + it.name); } else showTemp('Not enough Robo');
+    };
+    cont.appendChild(div);
+  }
+}
+
+/////////////////////// UI Updates ///////////////////////
+function updateUI(){
+  $('moneyDisplay').innerText = state.player.money.toLocaleString();
+  $('invCount').innerText = state.player.inventory.length;
+  $('playerLevel').innerText = state.player.level;
+}
+
+function showTemp(msg, dur=1200){
+  const p = document.createElement('div'); p.className='popup'; p.innerText = msg;
+  document.body.appendChild(p);
+  setTimeout(()=> p.remove(), dur);
+}
+
+/////////////////////// Control Loop (player movement etc) ///////////////////////
+function controlLoop(){
+  const speed = 220;
+  const dt = 16; // simulated step
+  if(keys['w']||keys['arrowup']) state.player.y -= speed*(dt/16);
+  if(keys['s']||keys['arrowdown']) state.player.y += speed*(dt/16);
+  if(keys['a']||keys['arrowleft']) state.player.x -= speed*(dt/16);
+  if(keys['d']||keys['arrowright']) state.player.x += speed*(dt/16);
+  // clamp to borders
+  state.player.x = clamp(state.player.x, borders.left, borders.right);
+  state.player.y = clamp(state.player.y, borders.top, borders.bottom);
+  // check interaction keys
+  if(keys['f']){ tryPickupNearest(); keys['f'] = false; }
+  if(keys['e']){ tryDeliverToBase(); keys['e'] = false; }
+  requestAnimationFrame(controlLoop);
+}
+
+/////////////////////// INIT / START ///////////////////////
+let running = false;
+function startGame(){
+  // unlock audio (some browsers require user gesture)
+  try{ audioCtx.resume(); }catch(e){}
+  // initial seed
+  for(let i=0;i<6;i++) spawnBrainrot();
+  renderShop();
+  updateUI();
+  initCanvasSize();
+  lastT = performance.now();
+  running = true;
+  requestAnimationFrame(gameLoop);
+  requestAnimationFrame(controlLoop);
+  // start background spawn timer
+  state.lastSpawn = now();
+  // hide intro overlay with a nice transition
+  const intro = $('introOverlay');
+  intro.style.transition = 'opacity .6s var(--easing), transform .6s var(--easing)';
+  intro.style.opacity = 0; intro.style.transform = 'scale(0.98)';
+  setTimeout(()=> intro.style.display = 'none', 620);
+  // cosmetic sound + flourish
+  beep(520,0.12,0.05,'sawtooth');
+  spawnFlash(state.player.x, state.player.y, '#9af7ff');
+  updateUI();
+}
+
+// demo quick start
+$('startBtn').onclick = startGame;
+$('demoBtn').onclick = ()=> { startGame(); showTemp('Demo mode — enjoy!'); };
+
+// keyboard shortcuts for demo
+window.addEventListener('keydown', e=>{
+  if(e.key === 'F1'){ spawnBrainrot(); }
+  if(e.key === '/' ){ const code = prompt('Enter secret code:'); if(code){ showTemp('Tried code: ' + code); } }
+});
+
+// Auto save / load (simple)
+function saveState(){ localStorage.setItem('takeabr_enhanced', JSON.stringify({player:state.player, spawnRate: state.spawnRate, adminUnlocked: state.adminUnlocked})); }
+function loadState(){ const s = localStorage.getItem('takeabr_enhanced'); if(s){ const obj = JSON.parse(s); state.player = Object.assign(state.player, obj.player||{}); state.spawnRate = obj.spawnRate || state.spawnRate; state.adminUnlocked = obj.adminUnlocked || state.adminUnlocked; if(state.adminUnlocked) $('adminControls').style.display = 'block'; } }
+setInterval(saveState, 6000);
+loadState();
+
+/////////////////////// quick helpers ///////////////////////
+function updateOnTick(){
+  // update UI numbers every 400ms
+  updateUI();
+  setTimeout(updateOnTick, 400);
+}
+updateOnTick();
+
+/* start resize and initial draw */
+window.addEventListener('load', ()=> {
+  // set logical world dims
+  const leftWrap = document.getElementById('left');
+  const rect = leftWrap.getBoundingClientRect();
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+  fxCanvas.style.width = rect.width + 'px';
+  fxCanvas.style.height = rect.height + 'px';
+  resizeCanvases();
+});
+
+/////////////////////// Start engine tick (already called on Start) ///////////////////////
+requestAnimationFrame(ts=>{ lastT = ts; /* idle until Start */ });
+
+</script>
+</body>
+</html>
